@@ -1,0 +1,37 @@
+import { logger } from '../config/logger.js';
+import { AppError } from '../shared/errors/app-error.js';
+function isHttpParserError(error) {
+    return error instanceof Error;
+}
+function toAppError(error) {
+    if (error instanceof AppError) {
+        return error;
+    }
+    if (isHttpParserError(error)) {
+        if (error.type === 'entity.too.large' || error.status === 413) {
+            return new AppError('PAYLOAD_TOO_LARGE', 413, 'Il payload della richiesta e troppo grande.');
+        }
+        if (error.type === 'entity.parse.failed' || error.status === 400) {
+            return new AppError('BAD_REQUEST', 400, 'JSON della richiesta non valido.');
+        }
+        if (error.message === 'Origin not allowed') {
+            return new AppError('CORS_ORIGIN_FORBIDDEN', 403, 'Origin non consentita.');
+        }
+    }
+    return new AppError('INTERNAL_SERVER_ERROR', 500, 'Errore interno del server.');
+}
+export const errorMiddleware = (error, request, response, next) => {
+    void next;
+    const appError = toAppError(error);
+    if (appError.statusCode >= 500) {
+        logger.error({ err: error, requestId: request.requestId }, appError.message);
+    }
+    response.status(appError.statusCode).json({
+        error: {
+            code: appError.code,
+            message: appError.message,
+            details: appError.details,
+            requestId: request.requestId
+        }
+    });
+};

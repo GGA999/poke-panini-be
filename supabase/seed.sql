@@ -1,0 +1,1 @@
+-- Seed iniziale da completare con le prime migrazioni.
