@@ -1,0 +1,15 @@
+# Dipendenze (pesanti, non vanno su Git)
+node_modules/
+dist/
+build/
+
+# Segreti e configurazioni locali (CRITICI!)
+.env
+.env.local
+password_keys_url.txt
+
+# File di sistema e log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
