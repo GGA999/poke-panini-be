@@ -9,7 +9,7 @@ import { notFoundMiddleware } from './middleware/not-found.middleware.js';
 import { publicRateLimiter } from './middleware/rate-limit.middleware.js';
 import { requestIdMiddleware } from './middleware/request-id.middleware.js';
 import { requireJsonMiddleware } from './middleware/require-json.middleware.js';
-import { apiRouter } from './routes.js';
+import { apiRouter } from './routes.js'; // <- Ci pensa già questo a portarsi dietro le tue ricette!
 
 const corsOptions: CorsOptions = {
   origin(origin, callback) {
@@ -66,6 +66,7 @@ export function createApp() {
     });
   });
 
+  // Questo attiva TUTTE le rotte (comprese le tue ricette) sotto /api/v1
   app.use(env.API_PREFIX, apiRouter);
 
   app.use(notFoundMiddleware);
