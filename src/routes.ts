@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { validateRequest } from './middleware/validation.middleware.js';
 import { validateConfiguration } from './modules/configurations/configurations.service.js';
 import configurationRoutes from './modules/configurations/configurations.routes.js';
+import { calculatePokePrice } from './modules/pricing/pricing.service.js';
+
 
 export const recipesRoutes = Router();
 export const apiRouter = Router();
@@ -33,22 +35,34 @@ apiRouter.post('/echo', validateRequest(echoValidationSchema), (request, respons
   response.status(200).json(request.body);
 });
 
-// --- Rotta Forzata Validazione Configurazione Poke ---
+// --- Rotta Forzata Validazione Configurazione Poke e Calcolo Prezzo ---
 apiRouter.post('/configurations/validate', async (req: Request, res: Response) => {
   try {
     const { recipeId, selections } = req.body;
+
+    // 1. Validazione di business (Task BE-010)
     const result = await validateConfiguration(recipeId, selections);
 
+    // 2. Calcolo del prezzo autorevole in centesimi (Task BE-011)
+    const priceBreakdown = await calculatePokePrice(recipeId, selections);
+
+    // 3. Risposta combinata con breakdown completo
     return res.status(200).json({
       status: 'success',
-      message: 'Configurazione valida',
+      message: 'Configurazione valida e prezzo calcolato',
       warnings: result.warnings,
+      pricing: {
+        basePriceCents: priceBreakdown.basePriceCents,
+        items: priceBreakdown.items,
+        subtotalCents: priceBreakdown.subtotalCents,
+        totalCents: priceBreakdown.totalCents
+      },
       data: result.normalizedConfig
     });
   } catch (error: any) {
     return res.status(400).json({
       status: 'error',
-      message: error.message || 'Errore durante la validazione'
+      message: error.message || 'Errore durante l\'elaborazione'
     });
   }
 });
