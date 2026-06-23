@@ -104,3 +104,52 @@ Restituisce il motivo specifico del fallimento della validazione di business (es
   "message": "Uno o più ingredienti selezionati non sono stati trovati nel catalogo."
 }
 
+#### POST `/pricing/preview`
+Endpoint dedicato al configuratore frontend per ottenere un'anteprima in tempo reale del prezzo e la validazione della Poke. Non scrive sul database, ha un rate-limit dedicato e un body limit di 10KB.
+
+* **Headers:** `Content-Type: application/json`
+* **Request Body:**
+```json
+{
+  "recipeId": "string (UUID)",
+  "selections": [
+    {
+      "ingredientId": "string (UUID)",
+      "categoriaId": "string (UUID)",
+      "quantita": "number (int >= 1)"
+    }
+  ]
+}
+Response Successo (200 OK):
+
+{
+  "status": "success",
+  "pricing": {
+    "basePriceCents": 750,
+    "items": [
+      {
+        "name": "Salmone",
+        "type": "ingredient",
+        "unitPriceCents": 150,
+        "quantita": 1,
+        "totalPriceCents": 150
+      }
+    ],
+    "subtotalCents": 900,
+    "totalCents": 900,
+    "currency": "EUR"
+  },
+  "warnings": [],
+  "data": {
+    "recipeId": "c8a41162-8cfb-4a57-bc47-1f481c96a324",
+    "ingredients": [ ... ]
+  }
+}
+
+Response Errore Configurazione Non Valida (422 Unprocessable Entity):
+
+{
+  "status": "invalid_configuration",
+  "message": "Uno o più ingredienti selezionati non sono stati trovati nel catalogo."
+}
+
