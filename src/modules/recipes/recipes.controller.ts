@@ -4,6 +4,9 @@ import { RecipesService } from './recipes.service.js';
 const recipesService = new RecipesService();
 
 export class RecipesController {
+  getById(arg0: string, arg1: (req: Request, res: Response, next: NextFunction) => Promise<void>, getById: any) {
+      throw new Error('Method not implemented.');
+  }
   async getFeatured(req: Request, res: Response, next: NextFunction) {
     try {
       const data = await recipesService.getFeaturedRecipes();
