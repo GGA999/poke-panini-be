@@ -1,10 +1,10 @@
-import { AnyAaaaRecord } from 'node:dns';
 import * as SupabaseModule from '../../config/supabase.js';
 const supabase = (SupabaseModule as any).default || (SupabaseModule as any).supabase || SupabaseModule;
 
 export class RecipesService {
-  async getFeaturedRecipes() {
-    const { data: recipes, error: recipesError } = await supabase
+  async getFeaturedRecipes(): Promise<any[]> {
+    // 1. Prende le ricette attive e in vetrina per la Home
+    const { data: recipes, error: recipesError } = await (supabase as any)
       .from('brand_recipes')
       .select(`
         id,
@@ -21,9 +21,10 @@ export class RecipesService {
     if (recipesError) throw recipesError;
     if (!recipes) return [];
 
+    // 2. Per ogni ricetta recupera i suoi ingredienti
     const recipesWithIngredients = await Promise.all(
-    recipes.map(async (recipe: AnyAaaaRecord) => {
-        const { data: ingredientsData, error: ingError } = await supabase
+      (recipes as any[]).map(async (recipe: any) => {
+        const { data: ingredientsData, error: ingError } = await (supabase as any)
           .from('brand_recipe_ingredients')
           .select(`
             quantity,
@@ -33,16 +34,17 @@ export class RecipesService {
 
         if (ingError) throw ingError;
 
-        const dettagliIngredienti = ingredientsData?.map((item: any) => ({
-          id: item.ingredients.id,
-          nome: item.ingredients.name,
-          code: item.ingredients.code,
+        const dettagliIngredienti = (ingredientsData as any[])?.map((item: any) => ({
+          id: item.ingredients?.id,
+          nome: item.ingredients?.name,
+          code: item.ingredients?.code,
           quantita: item.quantity,
-          prezzo_extra_centesimi: item.ingredients.price_delta_cents
+          prezzo_extra_centesimi: item.ingredients?.price_delta_cents || 0
         })) || [];
 
-        const prezzoBase = (recipe.sizes as any)?.base_price_cents || 0;
-        const totaleExtra = dettagliIngredienti.reduce((acc, curr) => acc + (curr.prezzo_extra_centesimi * curr.quantita), 0);
+        // Calcolo totale dei prezzi (Base + Extra) portando l'intero blocco a prescindere dal tipo di dato
+        const prezzoBase = recipe.sizes?.base_price_cents || 0;
+        const totaleExtra = dettagliIngredienti.reduce((acc: number, curr: any) => acc + (curr.prezzo_extra_centesimi * curr.quantita), 0);
         const prezzoTotaleCentesimi = prezzoBase + totaleExtra;
 
         return {
@@ -51,7 +53,7 @@ export class RecipesService {
           descrizione: recipe.description,
           immagine_url: recipe.image_url,
           personalizzabile: recipe.is_customizable,
-          dimensione_default: (recipe.sizes as any)?.name || 'Regular',
+          dimensione_default: recipe.sizes?.name || 'Regular',
           prezzo_totale_euro: prezzoTotaleCentesimi / 100,
           ingredienti: dettagliIngredienti
         };
