@@ -3,8 +3,8 @@
 Questo file contiene l'elenco ufficiale, le specifiche e gli esempi di utilizzo delle rotte esposte dal backend. Viene aggiornato costantemente con l'avanzamento dei task di sviluppo.
 
 ## Informazioni Generali
-* Prefisso Base: /api/v1
-* Formato Dati: application/json
+* Prefisso Base: `/api/v1`
+* Formato Dati: `application/json`
 
 ---
 
@@ -15,37 +15,66 @@ Questo file contiene l'elenco ufficiale, le specifiche e gli esempi di utilizzo 
 | Utility | GET | /health/live | Verifica lo stato di salute dell'applicazione | Attivo |
 | Utility | POST | /echo | Endpoint di test per la validazione strutturale dei payload | Attivo |
 | Configurations | POST | /configurations/validate | Valida la composizione della poke, i limiti di categoria e calcola il prezzo | Attivo |
+| Pricing | POST | /pricing/preview | Anteprima prezzo in tempo reale con rate limit e status 422 | Attivo |
+| Auth | GET | /auth/session-preview | Identifica il contesto dell'utente (Guest o Autenticato) senza bloccarlo | Attivo |
+| Auth | GET | /auth/secure-profile | Endpoint protetto che richiede un token JWT valido | Attivo |
 
 ---
 
 ## Dettaglio Endpoint
 
-### 1. Utility
+### 1. Utility & Autenticazione
 
-#### GET /health/live
+#### 🔵 GET /health/live
 Verifica che il server sia acceso e raggiungibile.
 
-* Response (200 OK):
+* **Response (200 OK):**
 ```json
 {
   "status": "ok"
 }
-
-POST /echo
+🔵 POST /echo
 Ritorna esattamente il body inviato se rispetta la validazione dello schema Zod.
 
 Headers: Content-Type: application/json
 
 Response (200 OK): Ritorna lo stesso oggetto inviato nel body.
 
-2. Configurations (Configurazioni Poke)
-POST /configurations/validate
-Prende in carico la composizione della Poke scelta dall'utente sul frontend, verifica la validità degli ingredienti su Supabase in batch, controlla che vengano rispettati i limiti di min_select e max_select impostati per ogni categoria e calcola il prezzo autorevole in centesimi (senza floating point).
+🔵 GET /auth/session-preview (BE-013)
+Endpoint pubblico che sfrutta il middleware optionalAuth. Identifica il contesto dell'utente senza bloccare la richiesta se il token è assente.
+
+Headers: Authorization: Bearer <JWT_TOKEN> (Opzionale)
+
+Response Guest (200 OK):
+
+JSON
+{
+  "status": "success",
+  "authenticated": false,
+  "userId": null,
+  "message": "Navigazione come utente ospite (Guest). Endpoint accessibile."
+}
+🔴 GET /auth/secure-profile (BE-013)
+Endpoint protetto tramite il middleware requiredAuth. Richiede obbligatoriamente un token valido, integro e non scaduto.
+
+Headers: Authorization: Bearer <JWT_TOKEN> (Obbligatorio)
+
+Response Errore Anonimo / Token Scaduto (401 Unauthorized):
+
+JSON
+{
+  "status": "error",
+  "message": "Accesso negato. Autenticazione tramite Bearer token valida richiesta."
+}
+2. Configurations & Pricing
+🔵 POST /configurations/validate
+Prende in carico la composizione della Poke scelta dall'utente sul frontend, verifica la validità degli ingredienti su Supabase in batch, controlla che vengano rispettati i limiti di min_select e max_select impostati per ogni categoria e calcola il prezzo autorevole in centesimi.
 
 Headers: Content-Type: application/json
 
 Request Body:
 
+JSON
 {
   "recipeId": "string (UUID)",
   "selections": [
@@ -56,10 +85,9 @@ Request Body:
     }
   ]
 }
-
 Response Successo (200 OK):
-Restituisce il successo dell'operazione, eventuali warning non bloccanti, il breakdown finanziario calcolato al centesimo e l'oggetto normalizzato.
 
+JSON
 {
   "status": "success",
   "message": "Configurazione valida e prezzo calcolato",
@@ -95,33 +123,23 @@ Restituisce il successo dell'operazione, eventuali warning non bloccanti, il bre
     }
   }
 }
-
 Response Errore Bloccante (400 Bad Request):
-Restituisce il motivo specifico del fallimento della validazione di business (es. limiti violati, ingredienti non attivi o non trovati nel catalogo).
 
+JSON
 {
   "status": "error",
   "message": "Uno o più ingredienti selezionati non sono stati trovati nel catalogo."
 }
-
-#### POST `/pricing/preview`
+🔵 POST /pricing/preview (BE-012)
 Endpoint dedicato al configuratore frontend per ottenere un'anteprima in tempo reale del prezzo e la validazione della Poke. Non scrive sul database, ha un rate-limit dedicato e un body limit di 10KB.
 
-* **Headers:** `Content-Type: application/json`
-* **Request Body:**
-```json
-{
-  "recipeId": "string (UUID)",
-  "selections": [
-    {
-      "ingredientId": "string (UUID)",
-      "categoriaId": "string (UUID)",
-      "quantita": "number (int >= 1)"
-    }
-  ]
-}
+Headers: Content-Type: application/json
+
+Request Body: Same as /configurations/validate
+
 Response Successo (200 OK):
 
+JSON
 {
   "status": "success",
   "pricing": {
@@ -145,11 +163,10 @@ Response Successo (200 OK):
     "ingredients": [ ... ]
   }
 }
-
 Response Errore Configurazione Non Valida (422 Unprocessable Entity):
 
+JSON
 {
   "status": "invalid_configuration",
   "message": "Uno o più ingredienti selezionati non sono stati trovati nel catalogo."
 }
-
