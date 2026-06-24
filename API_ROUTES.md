@@ -3,21 +3,22 @@
 Questo file contiene l'elenco ufficiale, le specifiche e gli esempi di utilizzo delle rotte esposte dal backend. Viene aggiornato costantemente con l'avanzamento dei task di sviluppo.
 
 ## Informazioni Generali
-* Prefisso Base: `/api/v1`
-* Formato Dati: `application/json`
+
+- Prefisso Base: `/api/v1`
+- Formato Dati: `application/json`
 
 ---
 
 ## Elenco delle Rotte
 
-| Modulo | Metodo | Endpoint | Descrizione | Stato |
-| :--- | :--- | :--- | :--- | :--- |
-| Utility | GET | /health/live | Verifica lo stato di salute dell'applicazione | Attivo |
-| Utility | POST | /echo | Endpoint di test per la validazione strutturale dei payload | Attivo |
-| Configurations | POST | /configurations/validate | Valida la composizione della poke, i limiti di categoria e calcola il prezzo | Attivo |
-| Pricing | POST | /pricing/preview | Anteprima prezzo in tempo reale con rate limit e status 422 | Attivo |
-| Auth | GET | /auth/session-preview | Identifica il contesto dell'utente (Guest o Autenticato) senza bloccarlo | Attivo |
-| Auth | GET | /auth/secure-profile | Endpoint protetto che richiede un token JWT valido | Attivo |
+| Modulo         | Metodo | Endpoint                 | Descrizione                                                                  | Stato  |
+| :------------- | :----- | :----------------------- | :--------------------------------------------------------------------------- | :----- |
+| Utility        | GET    | /health/live             | Verifica lo stato di salute dell'applicazione                                | Attivo |
+| Utility        | POST   | /echo                    | Endpoint di test per la validazione strutturale dei payload                  | Attivo |
+| Configurations | POST   | /configurations/validate | Valida la composizione della poke, i limiti di categoria e calcola il prezzo | Attivo |
+| Pricing        | POST   | /pricing/preview         | Anteprima prezzo in tempo reale con rate limit e status 422                  | Attivo |
+| Auth           | GET    | /auth/session-preview    | Identifica il contesto dell'utente (Guest o Autenticato) senza bloccarlo     | Attivo |
+| Auth           | GET    | /auth/secure-profile     | Endpoint protetto che richiede un token JWT valido                           | Attivo |
 
 ---
 
@@ -26,9 +27,11 @@ Questo file contiene l'elenco ufficiale, le specifiche e gli esempi di utilizzo 
 ### 1. Utility & Autenticazione
 
 #### 🔵 GET /health/live
+
 Verifica che il server sia acceso e raggiungibile.
 
-* **Response (200 OK):**
+- **Response (200 OK):**
+
 ```json
 {
   "status": "ok"
@@ -170,3 +173,4 @@ JSON
   "status": "invalid_configuration",
   "message": "Uno o più ingredienti selezionati non sono stati trovati nel catalogo."
 }
+```

@@ -1,45 +1,66 @@
 import type { RequestHandler } from 'express';
-import { ZodError } from 'zod';
+import { z, ZodError } from 'zod';
 
-export const validateRequest = (schema: any): RequestHandler => {
-  return async (req, res, next) => {
+interface RequestParts {
+  body?: unknown;
+  query?: unknown;
+  params?: unknown;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function replaceObject(target: object, value: unknown): void {
+  if (!isRecord(value)) {
+    return;
+  }
+
+  for (const key of Object.keys(target)) {
+    delete (target as Record<string, unknown>)[key];
+  }
+
+  Object.assign(target, value);
+}
+
+export const validateRequest = (
+  schema: z.ZodType<RequestParts>
+): RequestHandler => {
+  return async (request, response, next) => {
     try {
       const parsed = await schema.parseAsync({
-        body: req.body,
-        query: req.query,
-        params: req.params,
+        body: request.body as unknown,
+        query: request.query as unknown,
+        params: request.params as unknown
       });
 
-      // 🔥 TRUCCO AZIENDALE: Svuotiamo e ripopoliamo i vecchi oggetti senza cambiare il riferimento di Express
       if (parsed.body) {
-        Object.keys(req.body).forEach(key => delete req.body[key]);
-        Object.assign(req.body, parsed.body);
+        replaceObject(request.body as object, parsed.body);
       }
+
       if (parsed.query) {
-        Object.keys(req.query).forEach(key => delete req.query[key]);
-        Object.assign(req.query, parsed.query);
+        replaceObject(request.query, parsed.query);
       }
+
       if (parsed.params) {
-        Object.keys(req.params).forEach(key => delete req.params[key]);
-        Object.assign(req.params, parsed.params);
+        replaceObject(request.params, parsed.params);
       }
 
       next();
     } catch (error) {
-      console.error("🔴 ERRORE NEL MIDDLEWARE DI VALIDAZIONE:", error);
-
       if (error instanceof ZodError) {
         const fieldErrors = error.flatten().fieldErrors;
-        
-        res.status(400).json({
+
+        response.status(400).json({
           status: 'fail',
           error: {
             code: 'VALIDATION_ERROR',
             message: 'I dati inseriti non sono validi.',
-            details: fieldErrors
+            details: fieldErrors,
+            requestId: request.requestId
           }
         });
-        return; 
+        return;
       }
 
       next(error);

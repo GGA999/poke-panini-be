@@ -7,10 +7,6 @@ export function notFoundMiddleware(
   next: NextFunction
 ): void {
   next(
-    new AppError(
-      'RESOURCE_NOT_FOUND',
-      404,
-      'La risorsa richiesta non esiste.'
-    )
+    new AppError('RESOURCE_NOT_FOUND', 404, 'La risorsa richiesta non esiste.')
   );
 }

@@ -11,12 +11,12 @@
 
 ## Milestone
 
-| Milestone | Task | Risultato atteso |
-|---|---|---|
-| M1 — Fondazioni DB/API | BE-001–BE-006 | Schema, seed e servizio base pronti. |
-| M2 — Catalogo e pricing | BE-007–BE-012 | Il frontend può costruire e prezzare configurazioni. |
-| M3 — Ordini sicuri | BE-013–BE-017 | Creazione e lettura ordine, autenticazione e RLS. |
-| M4 — Hardening e rilascio | BE-018–BE-023 | Test, osservabilità, documentazione e deploy. |
+| Milestone                 | Task          | Risultato atteso                                     |
+| ------------------------- | ------------- | ---------------------------------------------------- |
+| M1 — Fondazioni DB/API    | BE-001–BE-006 | Schema, seed e servizio base pronti.                 |
+| M2 — Catalogo e pricing   | BE-007–BE-012 | Il frontend può costruire e prezzare configurazioni. |
+| M3 — Ordini sicuri        | BE-013–BE-017 | Creazione e lettura ordine, autenticazione e RLS.    |
+| M4 — Hardening e rilascio | BE-018–BE-023 | Test, osservabilità, documentazione e deploy.        |
 
 ## Backlog completo
 

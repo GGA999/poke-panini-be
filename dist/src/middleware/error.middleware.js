@@ -1,4 +1,5 @@
 import { logger } from '../config/logger.js';
+import { RepositoryError } from '../db/repository-error.js';
 import { AppError } from '../shared/errors/app-error.js';
 function isHttpParserError(error) {
     return error instanceof Error;
@@ -6,6 +7,20 @@ function isHttpParserError(error) {
 function toAppError(error) {
     if (error instanceof AppError) {
         return error;
+    }
+    if (error instanceof RepositoryError) {
+        switch (error.code) {
+            case 'NOT_FOUND':
+                return new AppError('NOT_FOUND', 404, 'Risorsa non trovata.');
+            case 'CONFLICT':
+                return new AppError('CONFLICT', 409, 'Conflitto con i dati esistenti.');
+            case 'VALIDATION_ERROR':
+                return new AppError('VALIDATION_ERROR', 422, 'Dati non validi.');
+            case 'DATABASE_UNAVAILABLE':
+                return new AppError('DATABASE_UNAVAILABLE', 503, 'Database non disponibile.');
+            case 'DATABASE_ERROR':
+                return new AppError('DATABASE_ERROR', 503, 'Database non disponibile o schema non allineato.');
+        }
     }
     if (isHttpParserError(error)) {
         if (error.type === 'entity.too.large' || error.status === 413) {

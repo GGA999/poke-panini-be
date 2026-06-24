@@ -1,7 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import { User } from '@supabase/supabase-js';
-// Sfruttiamo il tuo alias di percorso @ impostato nel tsconfig
-import { supabase } from '@/config/supabase.js'; 
+import type { NextFunction, Request, Response } from 'express';
+import type { User } from '@supabase/supabase-js';
+import { supabase } from '../config/supabase.js';
 
 // Estendiamo l'interfaccia Request direttamente nel modulo per essere blindati con NodeNext
 declare module 'express-serve-static-core' {
@@ -13,29 +12,35 @@ declare module 'express-serve-static-core' {
 /**
  * Funzione di utilità interna per estrarre e verificare il JWT di Supabase
  */
-async function extractAndVerifyUser(req: Request): Promise<void> {
-  const authHeader = req.headers.authorization;
+async function extractAndVerifyUser(request: Request): Promise<void> {
+  const authHeader = request.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    req.user = null;
+    request.user = null;
     return;
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = authHeader.slice('Bearer '.length).trim();
+
+  if (!token) {
+    request.user = null;
+    return;
+  }
 
   try {
-    // getUser valida crittograficamente la firma del JWT. Non ci fidiamo del body!
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+    const {
+      data: { user },
+      error
+    } = await supabase.auth.getUser(token);
 
     if (error || !user) {
-      req.user = null;
+      request.user = null;
       return;
     }
 
-    // Appendiamo l'utente verificato alla richiesta con i claim essenziali
-    req.user = user;
-  } catch (err) {
-    req.user = null;
+    request.user = user;
+  } catch {
+    request.user = null;
   }
 }
 
@@ -43,8 +48,12 @@ async function extractAndVerifyUser(req: Request): Promise<void> {
  * Middleware Autenticazione OPZIONALE (BE-013)
  * Consente l'accesso sia agli utenti loggati che ai guest (MVP).
  */
-export async function optionalAuth(req: Request, res: Response, next: NextFunction) {
-  await extractAndVerifyUser(req);
+export async function optionalAuth(
+  request: Request,
+  _response: Response,
+  next: NextFunction
+): Promise<void> {
+  await extractAndVerifyUser(request);
   next();
 }
 
@@ -52,14 +61,20 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
  * Middleware Autenticazione OBBLIGATORIA (BE-013)
  * Respinge la richiesta con 401 se il token è assente, non valido o scaduto.
  */
-export async function requiredAuth(req: Request, res: Response, next: NextFunction) {
-  await extractAndVerifyUser(req);
+export async function requiredAuth(
+  request: Request,
+  response: Response,
+  next: NextFunction
+): Promise<void> {
+  await extractAndVerifyUser(request);
 
-  if (!req.user) {
-    return res.status(401).json({
+  if (!request.user) {
+    response.status(401).json({
       status: 'error',
-      message: 'Accesso negato. Autenticazione tramite Bearer token valida richiesta.'
+      message:
+        'Accesso negato. Autenticazione tramite Bearer token valida richiesta.'
     });
+    return;
   }
 
   next();
