@@ -1,63 +1,82 @@
-import { Request, Response } from 'express';
+import type { RequestHandler } from 'express';
+import { z } from 'zod';
+import { logger } from '../../config/logger.js';
 import { validateConfiguration } from '../configurations/configurations.service.js';
 import { calculatePokePrice } from './pricing.service.js';
 
-export async function getPricePreview(req: Request, res: Response) {
-  // Avviamo il timer ad alta precisione per tracciare la durata
+const previewBodySchema = z.object({
+  recipeId: z.string().uuid(),
+  selections: z.array(
+    z.object({
+      ingredientId: z.string().uuid(),
+      categoriaId: z.string().uuid(),
+      quantita: z.number().int().positive()
+    })
+  )
+});
+
+export const getPricePreview: RequestHandler = async (request, response) => {
   const startTime = process.hrtime();
 
   try {
-    const { recipeId, selections } = req.body;
+    const parsedBody = previewBodySchema.safeParse(request.body as unknown);
 
-    if (!recipeId || !Array.isArray(selections)) {
-      return res.status(400).json({
+    if (!parsedBody.success) {
+      response.status(400).json({
         status: 'error',
         message: 'Payload non valido. recipeId e selections sono obbligatori.'
       });
+      return;
     }
 
-    // 1. Invochiamo la validazione della configurazione di business (Task BE-010)
-    let validationResult;
+    const { recipeId, selections } = parsedBody.data;
+    let validationResult: Awaited<ReturnType<typeof validateConfiguration>>;
+
     try {
       validationResult = await validateConfiguration(recipeId, selections);
-    } catch (validationError: any) {
-      // Come da criteri di accettazione: usiamo 422 per configurazione semanticamente non valida
-      return res.status(422).json({
+    } catch (validationError) {
+      response.status(422).json({
         status: 'invalid_configuration',
-        message: validationError.message || 'La configurazione della Poke non è valida.'
+        message:
+          validationError instanceof Error
+            ? validationError.message
+            : 'La configurazione della Poke non è valida.'
       });
+      return;
     }
 
-    // 2. Invochiamo il servizio di pricing (Task BE-011) - Ottimizzato in O(1) con Map, no query N+1
     const priceBreakdown = await calculatePokePrice(recipeId, selections);
 
-    // Calcolo della durata della richiesta
     const diff = process.hrtime(startTime);
     const durationInMs = (diff[0] * 1000 + diff[1] / 1000000).toFixed(2);
-    console.log(`[PERFORMANCE LOG] - POST /pricing/preview elaborato in ${durationInMs}ms`);
+    logger.info(
+      { durationInMs, requestId: request.requestId },
+      'POST /pricing/preview elaborato'
+    );
 
-    // 3. Risposta di successo conforme alle specifiche
-    return res.status(200).json({
+    response.status(200).json({
       status: 'success',
       pricing: {
         basePriceCents: priceBreakdown.basePriceCents,
         items: priceBreakdown.items,
         subtotalCents: priceBreakdown.subtotalCents,
         totalCents: priceBreakdown.totalCents,
-        currency: 'EUR' // Stringa esplicita richiesta dalle specifiche
+        currency: 'EUR'
       },
       warnings: validationResult.warnings,
       data: validationResult.normalizedConfig
     });
-
-  } catch (error: any) {
+  } catch (error) {
     const diff = process.hrtime(startTime);
     const durationInMs = (diff[0] * 1000 + diff[1] / 1000000).toFixed(2);
-    console.error(`[ERROR LOG] - Fallimento preview in ${durationInMs}ms:`, error.message);
+    logger.error(
+      { err: error, durationInMs, requestId: request.requestId },
+      'Fallimento preview prezzo'
+    );
 
-    return res.status(500).json({
+    response.status(500).json({
       status: 'error',
-      message: 'Errore interno durante il calcolo dell\'anteprima.'
+      message: "Errore interno durante il calcolo dell'anteprima."
     });
   }
-}
+};

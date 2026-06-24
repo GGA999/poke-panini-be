@@ -18,7 +18,8 @@ export function mapSupabaseError(error) {
     if (error.code === '23503' || error.code === '23514') {
         return new RepositoryError('VALIDATION_ERROR', 'Vincolo database violato.', error);
     }
-    if (error.code === '57014' || error.message.toLowerCase().includes('timeout')) {
+    if (error.code === '57014' ||
+        error.message.toLowerCase().includes('timeout')) {
         return new RepositoryError('DATABASE_UNAVAILABLE', 'Database non disponibile.', error);
     }
     return new RepositoryError('DATABASE_ERROR', 'Errore database.', error);

@@ -4,12 +4,14 @@ import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 import { env } from './config/env.js';
 import { logger } from './config/logger.js';
+import { checkSupabaseConnection } from './config/supabase.js';
 import { errorMiddleware } from './middleware/error.middleware.js';
 import { notFoundMiddleware } from './middleware/not-found.middleware.js';
 import { publicRateLimiter } from './middleware/rate-limit.middleware.js';
 import { requestIdMiddleware } from './middleware/request-id.middleware.js';
 import { requireJsonMiddleware } from './middleware/require-json.middleware.js';
 import { apiRouter } from './routes.js';
+import { withTimeout } from './shared/utils/with-timeout.js';
 const corsOptions = {
     origin(origin, callback) {
         if (!origin) {
@@ -53,6 +55,12 @@ export function createApp() {
     app.get('/health/live', (_request, response) => {
         response.status(200).json({
             status: 'ok'
+        });
+    });
+    app.get('/health/ready', async (_request, response) => {
+        const isReady = await withTimeout((signal) => checkSupabaseConnection(signal), 3_000).catch(() => false);
+        response.status(isReady ? 200 : 503).json({
+            status: isReady ? 'ready' : 'unavailable'
         });
     });
     app.use(env.API_PREFIX, apiRouter);

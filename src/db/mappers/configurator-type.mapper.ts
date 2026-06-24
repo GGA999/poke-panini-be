@@ -7,6 +7,7 @@ export interface ConfiguratorTypeRecord {
   id: string;
   code: string;
   name: string;
+  description: string | null;
   isActive: boolean;
   displayOrder: number;
 }
@@ -18,6 +19,7 @@ export function mapConfiguratorTypeRow(
     id: row.id,
     code: row.code,
     name: row.name,
+    description: row.description,
     isActive: row.is_active,
     displayOrder: row.display_order
   };
