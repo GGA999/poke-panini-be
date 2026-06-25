@@ -8,6 +8,7 @@ import { optionalAuth, requiredAuth } from './middleware/auth.middleware.js';
 import { getPricePreview } from './modules/pricing/pricing.controller.js';
 import { pricingRateLimiter } from './middleware/rate-limit.middleware.js';
 import { recipesRouter } from './modules/recipes/recipes.routes.js';
+import { ordersRouter } from './modules/orders/orders.router.js';
 
 export const apiRouter = Router();
 
@@ -20,6 +21,7 @@ apiRouter.get('/health/live', (_request, response) => {
 apiRouter.use('/configurators', catalogRouter);
 apiRouter.use('/brand-recipes', recipesRouter);
 apiRouter.use('/configurations', configurationRoutes);
+apiRouter.use('/orders', ordersRouter);
 
 apiRouter.post('/pricing/preview', pricingRateLimiter, getPricePreview);
 
