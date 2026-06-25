@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createOrder } from './orders.controller.js';
+import { createOrder, getOrderById } from './orders.controller.js'; // <-- Importato getOrderById
 import { createOrderSchema } from './orders.schema.js';
 import { AppError } from '../../shared/errors/app-error.js';
 
@@ -22,6 +22,11 @@ router.post('/', validateBody(createOrderSchema), (req, res, next) => {
   }
 
   createOrder(req, res, next).catch(next);
+});
+
+// 🚀 NUOVA ROTTA BE-015: Lettura ordine protetta e token guest
+router.get('/:id', (req, res, next) => {
+  getOrderById(req, res, next).catch(next);
 });
 
 export const ordersRouter = router;
