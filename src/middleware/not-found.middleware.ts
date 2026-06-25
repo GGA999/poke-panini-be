@@ -1,16 +1,8 @@
-import type { NextFunction, Request, Response } from 'express';
-import { AppError } from '../shared/errors/app-error.js';
+import { Request, Response, NextFunction } from 'express';
+import { NotFoundError } from '@/middleware/errors/error-classes.js';
 
-export function notFoundMiddleware(
-  _request: Request,
-  _response: Response,
-  next: NextFunction
-): void {
-  next(
-    new AppError(
-      'RESOURCE_NOT_FOUND',
-      404,
-      'La risorsa richiesta non esiste.'
-    )
-  );
+export function notFoundMiddleware(req: Request, _res: Response, next: NextFunction) {
+  console.log("💥 BINGO! SONO NEL NOT FOUND!"); // <-- Aggiungi questo!
+  const error = new NotFoundError(`Risorsa non trovata: ${req.method} ${req.originalUrl}`);
+  next(error);
 }
