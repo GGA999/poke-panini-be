@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 import { env } from './config/env.js';
 import { logger } from './config/logger.js';
-import { checkSupabaseConnection } from './config/supabase.js';
+import checkSupabaseConnection from './config/supabase.js';
 import { errorMiddleware } from './middleware/error.middleware.js';
 import { notFoundMiddleware } from './middleware/not-found.middleware.js';
 import { publicRateLimiter } from './middleware/rate-limit.middleware.js';
@@ -45,17 +45,33 @@ export function createApp() {
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
 
+  // 1. Il Request ID deve sempre essere il primo in assoluto
   app.use(requestIdMiddleware);
+  
+  // 📊 BE-018: Ottimizzazione Pino-HTTP per metriche e log strutturati completi
   app.use(
     pinoHttp<Request, Response>({
       logger,
+      // Collega il requestId generato precedentemente a ogni singolo log HTTP
       customProps: (request) => ({
         requestId: request.requestId
+      }),
+      // ✨ SOTTO-TASK: Appiattiamo i campi chiave alla fine delle richieste andate a buon fine (2xx, 3xx)
+      customSuccessObject: (request: any, response) => ({
+        route: request.route?.path || request.originalUrl || request.url,
+        status: response.statusCode
+        // Nota: la duration viene inserita automaticamente da pino-http come "responseTime" alla radice del JSON!
+      }),
+      // ✨ SOTTO-TASK: Facciamo lo stesso per le richieste che si piantano (4xx, 5xx)
+      customErrorObject: (request: any, response) => ({
+        route: request.route?.path || request.originalUrl || request.url,
+        status: response.statusCode
       }),
       customSuccessMessage: (request, response) =>
         `${request.method} ${request.url} ${response.statusCode}`
     })
   );
+  
   app.use(helmet());
   app.use(cors(corsOptions));
   app.use(requireJsonMiddleware);
