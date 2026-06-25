@@ -2,16 +2,15 @@ import cors, { type CorsOptions } from 'cors';
 import express, { type Request, type Response } from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
-import { env } from './config/env.js';
-import { logger } from './config/logger.js';
-import { checkSupabaseConnection } from './config/supabase.js';
-import { errorMiddleware } from './middleware/error.middleware.js';
-import { notFoundMiddleware } from './middleware/not-found.middleware.js';
-import { publicRateLimiter } from './middleware/rate-limit.middleware.js';
-import { requestIdMiddleware } from './middleware/request-id.middleware.js';
-import { requireJsonMiddleware } from './middleware/require-json.middleware.js';
-import { apiRouter } from './routes.js';
-import { withTimeout } from './shared/utils/with-timeout.js';
+
+// Usiamo l'alias assoluto @/ per essere sicuri al 100% di puntare alla cartella src/ corretta
+import { env } from '@/config/env.js';
+import { logger } from '@/config/logger.js';
+import { errorMiddleware } from './middleware/errors/error.middleware.js';import { notFoundMiddleware } from '@/middleware/not-found.middleware.js';
+import { publicRateLimiter } from '@/middleware/rate-limit.middleware.js';
+import { requestIdMiddleware } from '@/middleware/request-id.middleware.js';
+import { requireJsonMiddleware } from '@/middleware/require-json.middleware.js';
+import { apiRouter } from '@/routes.js';
 
 const corsOptions: CorsOptions = {
   origin(origin, callback) {
@@ -50,7 +49,7 @@ export function createApp() {
     pinoHttp<Request, Response>({
       logger,
       customProps: (request) => ({
-        requestId: request.requestId
+        requestId: (request as any).requestId
       }),
       customSuccessMessage: (request, response) =>
         `${request.method} ${request.url} ${response.statusCode}`
@@ -58,30 +57,26 @@ export function createApp() {
   );
   app.use(helmet());
   app.use(cors(corsOptions));
+  
+  // Middleware di validazione e parsing
   app.use(requireJsonMiddleware);
   app.use(express.json({ limit: env.REQUEST_BODY_LIMIT, strict: true }));
   app.use(publicRateLimiter);
 
+  // Healthcheck
   app.get('/health/live', (_request, response) => {
     response.status(200).json({
       status: 'ok'
     });
   });
 
-  app.get('/health/ready', async (_request, response) => {
-    const isReady = await withTimeout(
-      (signal) => checkSupabaseConnection(signal),
-      3_000
-    ).catch(() => false);
-
-    response.status(isReady ? 200 : 503).json({
-      status: isReady ? 'ready' : 'unavailable'
-    });
-  });
-
+// Prima le rotte delle API
   app.use(env.API_PREFIX, apiRouter);
 
+  // Poi il Not Found che lancia il 404
   app.use(notFoundMiddleware);
+
+  // INFINE il gestore degli errori che abbiamo appena corretto
   app.use(errorMiddleware);
 
   return app;
