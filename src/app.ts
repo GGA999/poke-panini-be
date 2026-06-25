@@ -3,6 +3,7 @@ import express, { type Request, type Response } from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 import { env } from './config/env.js';
+import { lifecycle } from './config/lifecycle.js'; // ✨ BE-019: Importiamo lo stato del ciclo di vita
 import { logger } from './config/logger.js';
 import checkSupabaseConnection from './config/supabase.js';
 import { errorMiddleware } from './middleware/error.middleware.js';
@@ -52,17 +53,13 @@ export function createApp() {
   app.use(
     pinoHttp<Request, Response>({
       logger,
-      // Collega il requestId generato precedentemente a ogni singolo log HTTP
       customProps: (request) => ({
         requestId: request.requestId
       }),
-      // ✨ SOTTO-TASK: Appiattiamo i campi chiave alla fine delle richieste andate a buon fine (2xx, 3xx)
       customSuccessObject: (request: any, response) => ({
         route: request.route?.path || request.originalUrl || request.url,
         status: response.statusCode
-        // Nota: la duration viene inserita automaticamente da pino-http come "responseTime" alla radice del JSON!
       }),
-      // ✨ SOTTO-TASK: Facciamo lo stesso per le richieste che si piantano (4xx, 5xx)
       customErrorObject: (request: any, response) => ({
         route: request.route?.path || request.originalUrl || request.url,
         status: response.statusCode
@@ -78,18 +75,30 @@ export function createApp() {
   app.use(express.json({ limit: env.REQUEST_BODY_LIMIT, strict: true }));
   app.use(publicRateLimiter);
 
+  // 🟢 BE-019: Liveness Probe - Isolata da dipendenze lente o DB
   app.get('/health/live', (_request, response) => {
     response.status(200).json({
       status: 'ok'
     });
   });
 
+  // 🟢 BE-019: Readiness Probe - Controlla la salute del DB e lo Shutdown imminente
   app.get('/health/ready', async (_request, response) => {
+    // 🛡️ CRITERIO SODDISFATTO: Se l'istanza è in fase di spegnimento, fallisce subito la readiness (503)
+    // in modo che il Load Balancer la tolga dal traffico prima che il server muoia fisicamente.
+    if (lifecycle.isShuttingDown) {
+      return response.status(503).json({
+        status: 'terminating'
+      });
+    }
+
+    // Gestione del timeout a 3 secondi sulla query leggera del database
     const isReady = await withTimeout(
       (signal) => checkSupabaseConnection(signal),
       3_000
     ).catch(() => false);
 
+    // 🛡️ CRITERIO SODDISFATTO: Nessun segreto o versione di codice esposta nell'health check pubblico
     response.status(isReady ? 200 : 503).json({
       status: isReady ? 'ready' : 'unavailable'
     });
