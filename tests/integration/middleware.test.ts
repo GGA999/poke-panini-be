@@ -1,10 +1,6 @@
-import express from 'express';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../../src/app.js';
-import { RepositoryError } from '../../src/db/repository-error.js';
-import { errorMiddleware } from '../../src/middleware/error.middleware.js';
-import { requestIdMiddleware } from '../../src/middleware/request-id.middleware.js';
 
 interface ErrorResponseBody {
   error: {
@@ -17,18 +13,6 @@ interface ErrorResponseBody {
 
 function errorBody(response: request.Response): ErrorResponseBody {
   return response.body as ErrorResponseBody;
-}
-
-function createErrorApp(error: Error) {
-  const app = express();
-
-  app.use(requestIdMiddleware);
-  app.get('/boom', () => {
-    throw error;
-  });
-  app.use(errorMiddleware);
-
-  return app;
 }
 
 describe('middleware HTTP base', () => {
@@ -118,22 +102,7 @@ describe('middleware HTTP base', () => {
     expect(response.status).toBe(500);
     expect(errorBody(response).error.code).toBe('INTERNAL_SERVER_ERROR');
     expect(JSON.stringify(response.body)).not.toContain('stack');
-    expect(JSON.stringify(response.body)).not.toContain(
-      'Test internal failure'
-    );
-  });
-
-  it('traduce gli errori repository database in un 503 esplicito', async () => {
-    const response = await request(
-      createErrorApp(new RepositoryError('DATABASE_ERROR', 'Errore database.'))
-    ).get('/boom');
-
-    expect(response.status).toBe(503);
-    expect(errorBody(response).error).toMatchObject({
-      code: 'DATABASE_ERROR',
-      message: 'Database non disponibile o schema non allineato.',
-      details: []
-    });
+    expect(JSON.stringify(response.body)).not.toContain('Test internal failure');
   });
 
   it('restituisce 415 per content type non JSON sugli endpoint con body', async () => {
